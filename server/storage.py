@@ -15,13 +15,18 @@ def ensure_file_exists(filename):
         with open(filename, 'w') as file:
             file.write(json.dumps({}))
 
+# Função para armazenar o identificador do cliente em um arquivo
 def save_client_id(client_id):
-    """Salva o ID do cliente no arquivo JSON, substituindo o conteúdo anterior."""
-    ensure_file_exists(CLIENTS_FILE)
-    clients = load_clients()
-    clients[client_id] = {}
-    with open(CLIENTS_FILE, 'w') as file:
-        json.dump(clients, file)
+    if os.path.exists('clients.json'):
+        with open('clients.json', 'r') as file:
+            clients_data = json.load(file)
+    else:
+        clients_data = {}
+
+    clients_data[client_id] = {}
+    
+    with open('clients.json', 'w') as file:
+        json.dump(clients_data, file)
 
 def load_clients():
     """Carrega todos os IDs de clientes do arquivo JSON."""

@@ -8,6 +8,7 @@ clients = {}
 # Função para lidar com o registro de clientes
 def handle_registration(client_socket):
     client_id = generate_unique_id()
+    save_client_id(client_id)
     clients[client_id] = client_socket
     response = f"02{client_id}"
     client_socket.sendall(response.encode('utf-8'))
