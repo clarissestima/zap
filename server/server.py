@@ -4,6 +4,7 @@ from config import HOST, PORT
 from storage import *
 
 clients = {}
+groups = {}
 
 def handle_registration(client_socket):
     client_id = generate_unique_id()
@@ -26,7 +27,7 @@ def send_pending_messages(client_id, client_socket):
         with open(PENDING_MESSAGES_FILE, 'w') as file:
             json.dump(pending_messages, file)
 
-def handle_group_creation(data, client_socket):
+def handle_group_creation(data):
     creator_id = data[2:15]
     timestamp = data[15:25]
     members = [data[i:i+13] for i in range(25, len(data), 13)]
@@ -39,13 +40,15 @@ def handle_group_creation(data, client_socket):
         "members": members
     }
     save_group(group_data)
+    groups[group_id] = group_data
 
     notification = f"11{group_id}{timestamp}{''.join(members)}"
+    message = f"Bem-vindo ao grupo de {creator_id}"
     for member_id in members:
         if member_id in clients:
             clients[member_id].sendall(notification.encode('utf-8'))
         else:
-            save_pending_message(creator_id, member_id, notification)
+            save_pending_message(creator_id, member_id, timestamp, message)
 
     print(f"Grupo criado com ID: {group_id}, membros: {members}")
 
@@ -78,6 +81,12 @@ def handle_client(client_socket):
 
                 if dst_id in clients:
                     message.sendall(data.encode('utf-8'))
+                elif dst_id in groups:
+                    for member_id in groups[dst_id][members]:
+                        if member_id in clients:
+                            member_id.sendall(notification.encode('utf-8'))
+                        else:
+                            save_pending_message(src_id, member_id, timestamp, message)
                 else:
                     save_pending_message(src_id, dst_id, timestamp, message)
 
@@ -89,7 +98,10 @@ def handle_client(client_socket):
                     notification = f'09{src_id}{timestamp}'
                     clients[src_id].sendall(notification.encode('utf-8'))
                     print(f"Notificação de leitura enviada para {src_id}")
-                    
+            
+            elif data.startswith('10'):
+                handle_group_creation(data)
+
     except Exception as e:
         print(f"Erro ao processar dados do cliente: {e}")
     finally:

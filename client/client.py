@@ -1,5 +1,4 @@
 import socket
-import time
 from datetime import datetime
 import threading
 from config import SERVER_HOST, SERVER_PORT
@@ -104,8 +103,9 @@ def create_group(client_id):
             members.append(member_id)
         else:
             break
-    
-    save_client_groups(client_id, members)
+
+    for i in members:
+        save_client_groups(i, members)
 
     timestamp = str(int(time.time()))
     group_message = f'10{client_id}{timestamp}{"".join(members)}'
