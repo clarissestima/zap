@@ -4,6 +4,7 @@ import os
 
 PENDING_MESSAGES_FILE = 'pending_messages.json'
 CLIENTS_FILE = 'clients.json'
+GROUPS_FILE = 'groups.json'
 
 def generate_unique_id():
     return ''.join([str(random.randint(0, 9)) for _ in range(13)])
@@ -14,16 +15,23 @@ def ensure_file_exists(filename):
             file.write(json.dumps({}))
 
 def save_client_id(client_id):
-    if os.path.exists('clients.json'):
-        with open('clients.json', 'r') as file:
+    if os.path.exists(CLIENTS_FILE):
+        with open(CLIENTS_FILE, 'r') as file:
             clients_data = json.load(file)
     else:
         clients_data = {}
 
     clients_data[client_id] = {}
     
-    with open('clients.json', 'w') as file:
+    with open(CLIENTS_FILE, 'w') as file:
         json.dump(clients_data, file)
+
+def save_group(group_data):
+    if os.path.exists(GROUPS_FILE):
+        with open(GROUPS_FILE, 'r') as file:
+            return json.load(file)
+    return group_data
+
 
 def load_clients():
     ensure_file_exists(CLIENTS_FILE)

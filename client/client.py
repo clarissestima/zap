@@ -51,7 +51,10 @@ def connect_client():
     while True:
         print("\nMenu:")
         print("1. Enviar mensagem")
-        print("2. Sair")
+        print("2. Adicionar contato")
+        print("3. Criar grupo")
+        print("4. Sair")
+
         choice = input("Escolha uma opção: ")
 
         if choice == '1':
@@ -59,6 +62,10 @@ def connect_client():
             message = input("Digite sua mensagem: ")
             send_message(client_socket, dst_id, message)
         elif choice == '2':
+            add_contact()
+        elif choice == '3':
+            create_group()
+        elif choice == '4':
             client_socket.close()  # Fechar soquete ao sair
             break
         else:
@@ -75,6 +82,35 @@ def send_message(client_socket, dst_id, data):
     message = f'05{src_id}{dst_id}{timestamp}{data}'
     client_socket.sendall(message.encode('utf-8'))
     print('Mensagem enviada com sucesso.')
+
+def add_contact():
+    contact_id = input("Id do usuário que você gostaria de adicionar ao seus contatos: ")
+    save_client_contacts(contact_id)
+
+def create_group():
+    client_data = load_client_data()
+    creator_id = client_data.get("client_id")
+    if not creator_id:
+        print("Cliente não registrado. Registre-se primeiro.")
+        return
+    
+    members = [creator_id]
+    for _ in range(7):
+        member_id = input("Digite o ID de um membro: ")
+        if member_id:
+            members.append(member_id)
+        else:
+            break
+    
+    save_client_groups(members)
+
+    timestamp = str(int(time.time()))
+    group_message = f'10{creator_id}{timestamp}{"".join(members)}'
+    
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+        client_socket.connect((SERVER_HOST, SERVER_PORT))
+        client_socket.sendall(group_message.encode('utf-8'))
+        print('Solicitação de criação de grupo enviada.')
 
 def main():
     while True:

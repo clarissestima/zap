@@ -1,6 +1,5 @@
 import socket
 import json
-import threading
 from config import HOST, PORT
 from storage import *
 
@@ -25,35 +24,60 @@ def send_pending_messages(client_id, client_socket):
         with open(PENDING_MESSAGES_FILE, 'w') as file:
             json.dump(pending_messages, file)
 
+def handle_group_creation(data, client_socket):
+    creator_id = data[2:15]
+    timestamp = data[15:25]
+    members = [data[i:i+13] for i in range(25, len(data), 13)]
+    group_id = generate_unique_id()
+    
+    group_data = {
+        "group_id": group_id,
+        "creator_id": creator_id,
+        "timestamp": timestamp,
+        "members": members
+    }
+    save_group(group_data)
+
+    notification = f"11{group_id}{timestamp}{''.join(members)}"
+    for member_id in members:
+        if member_id in clients:
+            clients[member_id].sendall(notification.encode('utf-8'))
+        else:
+            save_pending_message(creator_id, member_id, notification)
+
+    print(f"Grupo criado com ID: {group_id}, membros: {members}")
+
 def handle_client(client_socket):
     try:
-        while True:
-            data = client_socket.recv(1024).decode('utf-8')
-            if not data:
-                break
-            
-            print(f"Dados recebidos: {data}")
+        data = client_socket.recv(1024).decode('utf-8')
+        if not data:
+            return
+        
+        print(f"Dados recebidos: {data}")
 
-            if data.startswith('01'):
-                handle_registration(client_socket)
+        if data.startswith('01'):
+            handle_registration(client_socket)
+        
+        elif data.startswith('03'):
+            client_id = data[2:]
+            if client_id in clients:
+                send_pending_messages(client_id, client_socket)
+            else:
+                print("Cliente não registrado.")
+        
+        elif data.startswith('05'):
+            src_id = data[2:15]
+            dst_id = data[15:28]
+            message = data[28:]
             
-            elif data.startswith('03'):
-                client_id = data[2:]
-                if client_id in clients:
-                    send_pending_messages(client_id, client_socket)
-                else:
-                    print("Cliente não registrado.")
-            
-            elif data.startswith('05'):
-                src_id = data[2:15]
-                dst_id = data[15:28]
-                message = data[28:]
+            if dst_id in clients:
+                clients[dst_id].sendall(data.encode('utf-8'))
+            else:
+                save_pending_message(src_id, dst_id, data)
+
+        elif data.startswith('10'):
+            handle_group_creation(data, client_socket)
                 
-                if dst_id in clients:
-                    clients[dst_id].sendall(data.encode('utf-8'))
-                else:
-                    save_pending_message(src_id, dst_id, data)
-                    
     except Exception as e:
         print(f"Erro ao processar dados do cliente: {e}")
     finally:
@@ -69,7 +93,7 @@ def main():
     while True:
         client_socket, client_address = server_socket.accept()
         print(f"Conexão recebida de {client_address}")
-        threading.Thread(target=handle_client, args=(client_socket,)).start()
+        handle_client(client_socket)
 
 if __name__ == "__main__":
     main()

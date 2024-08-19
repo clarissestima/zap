@@ -7,8 +7,8 @@ def load_client_data():
             return json.load(file)
     return {
         "client_id": None,
-        "contacts": {},
-        "groups": {},
+        "contacts": [],
+        "groups": [],
         "messages": []
     }
 
@@ -19,6 +19,16 @@ def save_client_data(data):
 def save_client_id(client_id):
     data = load_client_data()
     data["client_id"] = client_id
+    save_client_data(data)
+
+def save_client_contacts(new_contact):
+    data = load_client_data()
+    data["contacts"].append(new_contact)
+    save_client_data(data)
+
+def save_client_groups(new_group):
+    data = load_client_data()
+    data["groups"].append(new_group)
     save_client_data(data)
 
 def save_message_to_history(message):
