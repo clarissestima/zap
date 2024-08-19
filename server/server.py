@@ -1,5 +1,5 @@
 import socket
-import json
+import threading
 from config import HOST, PORT
 from storage import *
 
@@ -15,7 +15,9 @@ def handle_registration(client_socket):
 
 def send_pending_messages(client_id, client_socket):
     messages = get_pending_messages(client_id)
+    print(messages)
     for message in messages:
+        print(message)
         client_socket.sendall(message.encode('utf-8'))
 
     pending_messages = load_pending_messages()
@@ -49,39 +51,52 @@ def handle_group_creation(data, client_socket):
 
 def handle_client(client_socket):
     try:
-        data = client_socket.recv(1024).decode('utf-8')
-        if not data:
-            return
-        
-        print(f"Dados recebidos: {data}")
-
-        if data.startswith('01'):
-            handle_registration(client_socket)
-        
-        elif data.startswith('03'):
-            client_id = data[2:]
-            if client_id in clients:
-                send_pending_messages(client_id, client_socket)
-            else:
-                print("Cliente não registrado.")
-        
-        elif data.startswith('05'):
-            src_id = data[2:15]
-            dst_id = data[15:28]
-            message = data[28:]
+        while True:
+            data = client_socket.recv(1024).decode('utf-8')
+            if not data:
+                break
             
-            if dst_id in clients:
-                clients[dst_id].sendall(data.encode('utf-8'))
-            else:
-                save_pending_message(src_id, dst_id, data)
+            print(f"Dados recebidos: {data}")
 
-        elif data.startswith('10'):
-            handle_group_creation(data, client_socket)
+            if data.startswith('01'):
+                handle_registration(client_socket)
+            
+            elif data.startswith('03'):
+                client_id = data[2:]
+                if client_exists(client_id):
+                    send_pending_messages(client_id, client_socket)
+                else:
+                    print("Cliente não registrado.")
+            
+            elif data.startswith('05'):
+                src_id = data[2:15]
+                dst_id = data[15:28]
+                timestamp = data[28:44]
+                message = data[44:]
                 
+                print(src_id, dst_id, timestamp, message)
+
+                if dst_id in clients:
+                    message.sendall(data.encode('utf-8'))
+                else:
+                    save_pending_message(src_id, dst_id, timestamp, message)
+
+            elif data.startswith('08'):
+                src_id = data[2:15]
+                timestamp = data[15:]
+                
+                if client_exists(src_id):
+                    notification = f'09{src_id}{timestamp}'
+                    clients[src_id].sendall(notification.encode('utf-8'))
+                    print(f"Notificação de leitura enviada para {src_id}")
+                    
     except Exception as e:
         print(f"Erro ao processar dados do cliente: {e}")
     finally:
         client_socket.close()
+        print("Soquete fechado.")
+
+#def handle_message():
 
 def main():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -93,7 +108,10 @@ def main():
     while True:
         client_socket, client_address = server_socket.accept()
         print(f"Conexão recebida de {client_address}")
-        handle_client(client_socket)
+
+        client_thread = threading.Thread(target=handle_client, args=(client_socket,))
+        client_thread.daemon = True
+        client_thread.start()
 
 if __name__ == "__main__":
     main()

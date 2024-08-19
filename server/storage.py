@@ -29,9 +29,14 @@ def save_client_id(client_id):
 def save_group(group_data):
     if os.path.exists(GROUPS_FILE):
         with open(GROUPS_FILE, 'r') as file:
-            return json.load(file)
-    return group_data
+            groups_data = json.load(file)
+    else:
+        groups_data = {}
 
+    groups_data[group_data["group_id"]] = group_data
+    
+    with open(GROUPS_FILE, 'w') as file:
+        json.dump(groups_data, file)
 
 def load_clients():
     ensure_file_exists(CLIENTS_FILE)
@@ -47,7 +52,7 @@ def load_pending_messages():
     with open(PENDING_MESSAGES_FILE, 'r') as file:
         return json.load(file)
 
-def save_pending_message(src_id, dst_id, message):
+def save_pending_message(src_id, dst_id, timestamp, message):
     pending_messages = load_pending_messages()
 
     if dst_id not in pending_messages:

@@ -1,5 +1,6 @@
 import socket
 import time
+from datetime import datetime
 import threading
 from config import SERVER_HOST, SERVER_PORT
 from storage import *
@@ -17,23 +18,10 @@ def register_client():
         else:
             print('Falha ao registrar o cliente.')
 
-def receive_messages(client_socket):
-    while True:
-        try:
-            response = client_socket.recv(1024).decode('utf-8')
-            if not response:
-                print("Conexão com o servidor perdida.")
-                break
-            print(f'Mensagem recebida: {response}')
-            save_message_to_history(response)
-        except socket.error as e:
-            print(f"Erro ao receber mensagem: {e}")
-            break
-
 def connect_client():
     client_data = load_client_data()
-    client_id = client_data.get("client_id")
-    if not client_id:
+    client_id = input("Digite seu ID para se conectar: ")
+    if client_id not in client_data:
         print("Cliente não registrado. Registre-se primeiro.")
         return
 
@@ -44,7 +32,7 @@ def connect_client():
     message = f'03{client_id}'
     client_socket.sendall(message.encode('utf-8'))
 
-    receive_thread = threading.Thread(target=receive_messages, args=(client_socket,))
+    receive_thread = threading.Thread(target=receive_messages, args=(client_socket, client_id))
     receive_thread.daemon = True
     receive_thread.start()
 
@@ -60,41 +48,56 @@ def connect_client():
         if choice == '1':
             dst_id = input("ID do destinatário: ")
             message = input("Digite sua mensagem: ")
-            send_message(client_socket, dst_id, message)
+            send_message(client_socket, client_id, dst_id, message)
         elif choice == '2':
-            add_contact()
+            add_contact(client_id)
         elif choice == '3':
-            create_group()
+            create_group(client_id)
         elif choice == '4':
-            client_socket.close()  # Fechar soquete ao sair
+            client_socket.close()
             break
         else:
             print("Opção inválida.")
 
-def send_message(client_socket, dst_id, data):
-    client_data = load_client_data()
-    src_id = client_data.get("client_id")
-    if not src_id:
-        print("Cliente não registrado. Registre-se primeiro.")
-        return
-
-    timestamp = str(int(time.time()))
+def send_message(client_socket, src_id, dst_id, data):
+    timestamp = str(datetime.now().strftime("%d/%m/%Y;%H:%M"))
     message = f'05{src_id}{dst_id}{timestamp}{data}'
     client_socket.sendall(message.encode('utf-8'))
     print('Mensagem enviada com sucesso.')
 
-def add_contact():
-    contact_id = input("Id do usuário que você gostaria de adicionar ao seus contatos: ")
-    save_client_contacts(contact_id)
+def receive_messages(client_socket, client_id):
+    while True:
+        try:
+            message = client_socket.recv(1024).decode('utf-8')
+            if not message:
+                print("Conexão com o servidor perdida.")
+                break
+            print(f'Mensagem recebida: {message}')
+            save_message_to_history(client_id, message)
+        except socket.error as e:
+            print(f"Erro ao receber mensagem: {e}")
+            break
 
-def create_group():
-    client_data = load_client_data()
-    creator_id = client_data.get("client_id")
-    if not creator_id:
-        print("Cliente não registrado. Registre-se primeiro.")
-        return
-    
-    members = [creator_id]
+def confirm_read(client_id, timestamp):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+        client_socket.connect((SERVER_HOST, SERVER_PORT))
+        message = f'08{client_id}{timestamp}'
+        client_socket.sendall(message.encode('utf-8'))
+        print('Confirmação de leitura enviada.')
+
+def handle_message(message, client_id):
+    print(f"Nova mensagem: {message}")
+
+    src_id = message[2:15]
+    timestamp = message[28:38]
+    confirm_read(client_id, timestamp)
+
+def add_contact(client_id):
+    contact_id = input("Id do usuário que você gostaria de adicionar aos seus contatos: ")
+    save_client_contacts(client_id, contact_id)
+
+def create_group(client_id):
+    members = [client_id]
     for _ in range(7):
         member_id = input("Digite o ID de um membro: ")
         if member_id:
@@ -102,10 +105,10 @@ def create_group():
         else:
             break
     
-    save_client_groups(members)
+    save_client_groups(client_id, members)
 
     timestamp = str(int(time.time()))
-    group_message = f'10{creator_id}{timestamp}{"".join(members)}'
+    group_message = f'10{client_id}{timestamp}{"".join(members)}'
     
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
         client_socket.connect((SERVER_HOST, SERVER_PORT))
