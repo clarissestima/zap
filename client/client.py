@@ -4,11 +4,10 @@ import threading
 from config import SERVER_HOST, SERVER_PORT
 from storage import *
 
-# Função para registrar o cliente no servidor
 def register_client():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
         client_socket.connect((SERVER_HOST, SERVER_PORT))
-        message = '01'  # Código de registro
+        message = '01'
         client_socket.sendall(message.encode('utf-8'))
         response = client_socket.recv(1024).decode('utf-8')
         if response.startswith('02'):
@@ -18,7 +17,6 @@ def register_client():
         else:
             print('Falha ao registrar o cliente.')
 
-# Função para receber mensagens do servidor
 def receive_messages(client_socket):
     while True:
         try:
@@ -31,9 +29,7 @@ def receive_messages(client_socket):
         except socket.error as e:
             print(f"Erro ao receber mensagem: {e}")
             break
-    client_socket.close()
 
-# Função para conectar o cliente ao servidor
 def connect_client():
     client_data = load_client_data()
     client_id = client_data.get("client_id")
@@ -41,48 +37,45 @@ def connect_client():
         print("Cliente não registrado. Registre-se primeiro.")
         return
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-        client_socket.connect((SERVER_HOST, SERVER_PORT))
-        message = f'03{client_id}'  # Código de conexão
-        client_socket.sendall(message.encode('utf-8'))
+    print(f"Conectado como: {client_id}")
 
-        # Iniciar uma thread para receber mensagens
-        receive_thread = threading.Thread(target=receive_messages, args=(client_socket,))
-        receive_thread.daemon = True
-        receive_thread.start()
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.connect((SERVER_HOST, SERVER_PORT))
+    message = f'03{client_id}'
+    client_socket.sendall(message.encode('utf-8'))
 
-        # Interagir com o menu enquanto recebe mensagens
-        while True:
-            print("\nMenu:")
-            print("1. Enviar mensagem")
-            print("2. Sair")
-            choice = input("Escolha uma opção: ")
+    receive_thread = threading.Thread(target=receive_messages, args=(client_socket,))
+    receive_thread.daemon = True
+    receive_thread.start()
 
-            if choice == '1':
-                dst_id = input("ID do destinatário: ")
-                message = input("Digite sua mensagem: ")
-                send_message(dst_id, message)
-            elif choice == '2':
-                break
-            else:
-                print("Opção inválida.")
+    while True:
+        print("\nMenu:")
+        print("1. Enviar mensagem")
+        print("2. Sair")
+        choice = input("Escolha uma opção: ")
 
-# Função para enviar uma mensagem para outro cliente
-def send_message(dst_id, data):
+        if choice == '1':
+            dst_id = input("ID do destinatário: ")
+            message = input("Digite sua mensagem: ")
+            send_message(client_socket, dst_id, message)
+        elif choice == '2':
+            client_socket.close()  # Fechar soquete ao sair
+            break
+        else:
+            print("Opção inválida.")
+
+def send_message(client_socket, dst_id, data):
     client_data = load_client_data()
     src_id = client_data.get("client_id")
     if not src_id:
         print("Cliente não registrado. Registre-se primeiro.")
         return
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-        client_socket.connect((SERVER_HOST, SERVER_PORT))
-        timestamp = str(int(time.time()))
-        message = f'05{src_id}{dst_id}{timestamp}{data}'
-        client_socket.sendall(message.encode('utf-8'))
-        print('Mensagem enviada com sucesso.')
+    timestamp = str(int(time.time()))
+    message = f'05{src_id}{dst_id}{timestamp}{data}'
+    client_socket.sendall(message.encode('utf-8'))
+    print('Mensagem enviada com sucesso.')
 
-# Função principal para interação do cliente
 def main():
     while True:
         print("\nMenu:")
