@@ -43,6 +43,11 @@ def load_clients():
     with open(CLIENTS_FILE, 'r') as file:
         return json.load(file)
 
+def load_groups():
+    ensure_file_exists(GROUPS_FILE)
+    with open(GROUPS_FILE, 'r') as file:
+        return json.load(file)
+
 def client_exists(client_id):
     clients = load_clients()
     return client_id in clients
