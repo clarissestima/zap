@@ -1,6 +1,6 @@
 import socket
-from datetime import datetime
 import threading
+from datetime import datetime
 from config import SERVER_HOST, SERVER_PORT
 from storage import *
 
@@ -69,31 +69,35 @@ def receive_messages(client_socket, client_id):
         try:
             message = client_socket.recv(1024).decode('utf-8')
             if not message:
-                print("Conexão com o servidor perdida.")
                 break
-            print(f'Mensagem recebida: {message}')
-            save_message_to_history(client_id, message)
+            handle_message(message, client_id)
         except socket.error as e:
             print(f"Erro ao receber mensagem: {e}")
             break
 
-def confirm_read(client_id, timestamp):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-        client_socket.connect((SERVER_HOST, SERVER_PORT))
-        message = f'08{client_id}{timestamp}'
-        client_socket.sendall(message.encode('utf-8'))
-        print('Confirmação de leitura enviada.')
+def confirm_read(src_id, client_id, timestamp):
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+            client_socket.connect((SERVER_HOST, SERVER_PORT))
+            message = f'08{client_id}{src_id}{timestamp}'
+            client_socket.sendall(message.encode('utf-8'))
+            print('Confirmação de leitura enviada.')
+    except socket.error as e:
+        print(f"Erro ao enviar confirmação de leitura: {e}")
 
-def handle_message(message, client_id):
+def handle_message(data, client_id):
+    src_id = data[2:15]
+    timestamp = data[15:31]
+    message = data[31:]
+
     print(f"Nova mensagem: {message}")
 
-    src_id = message[2:15]
-    timestamp = message[28:38]
-    confirm_read(client_id, timestamp)
+    confirm_read(src_id, client_id, timestamp)
 
 def add_contact(client_id):
     contact_id = input("Id do usuário que você gostaria de adicionar aos seus contatos: ")
-    save_client_contacts(client_id, contact_id)
+    if not save_client_contacts(client_id, contact_id):
+        print("Não foi possível adicionar o contato, tente novamente.")
 
 def create_group(client_id):
     members = [client_id]
@@ -107,7 +111,7 @@ def create_group(client_id):
     for i in members:
         save_client_groups(i, members)
 
-    timestamp = str(int(time.time()))
+    timestamp = str(datetime.now().strftime("%d/%m/%Y;%H:%M"))
     group_message = f'10{client_id}{timestamp}{"".join(members)}'
     
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:

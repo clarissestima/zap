@@ -58,7 +58,7 @@ def save_pending_message(src_id, dst_id, timestamp, message):
     if dst_id not in pending_messages:
         pending_messages[dst_id] = []
 
-    pending_messages[dst_id].append(message)
+    pending_messages[dst_id].append([src_id, timestamp, message])
     
     with open(PENDING_MESSAGES_FILE, 'w') as file:
         json.dump(pending_messages, file)

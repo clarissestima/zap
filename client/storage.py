@@ -25,9 +25,11 @@ def save_client_id(client_id):
 
 def save_client_contacts(client_id, new_contact):
     data = load_client_data()
-    if client_id in data:
+    if client_id in data and new_contact in data:
         data[client_id]["contacts"].append(new_contact)
         save_client_data(data)
+        return True
+    return False
 
 def save_client_groups(client_id, new_group):
     data = load_client_data()
