@@ -65,15 +65,24 @@ def send_message(client_socket, src_id, dst_id, data):
     print('Mensagem enviada com sucesso.')
 
 def receive_messages(client_socket, client_id):
-    while True:
-        try:
-            message = client_socket.recv(1024).decode('utf-8')
-            if not message:
+    try:
+        while True:
+            data = client_socket.recv(1024).decode('utf-8')
+            if data:
+                if data.startswith('09'):  # Notificação de leitura
+                    print("Confirmação de leitura recebida.")
+                else:
+                    handle_message(data, client_id)
+            else:
+                # No data means the server closed the connection
+                print("Conexão com o servidor foi perdida.")
                 break
-            handle_message(message, client_id)
-        except socket.error as e:
-            print(f"Erro ao receber mensagem: {e}")
-            break
+    except socket.error as e:
+        print(f"Erro ao receber mensagem: {e}")
+    finally:
+        client_socket.close()
+        print("Socket fechado.")
+
 
 def confirm_read(src_id, client_id, timestamp):
     try:
@@ -90,7 +99,7 @@ def handle_message(data, client_id):
     timestamp = data[15:31]
     message = data[31:]
 
-    print(f"Nova mensagem: {message}")
+    print(f"\nNova mensagem recebida de {src_id}: {message}")
 
     confirm_read(src_id, client_id, timestamp)
 
