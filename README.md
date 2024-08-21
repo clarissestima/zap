@@ -62,10 +62,10 @@ Contém as configurações do servidor, como `HOST` e `PORT`.
 ## Como Executar o Sistema
 
 ### Servidor:
-- Inicie o servidor executando o script principal do servidor.
+- Inicie o servidor executando o script principal do servidor (python server/server.py).
 - O servidor ficará aguardando conexões dos clientes.
 
 ### Cliente:
-- Execute o script principal do cliente.
+- Execute o script principal do cliente (python client/client.py).
 - Escolha a opção de registrar ou conectar um cliente.
 - Uma vez conectado, o cliente pode enviar mensagens, adicionar contatos ou criar grupos.

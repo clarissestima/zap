@@ -69,12 +69,11 @@ def receive_messages(client_socket, client_id):
         while True:
             data = client_socket.recv(1024).decode('utf-8')
             if data:
-                if data.startswith('09'):  # Notificação de leitura
+                if data.startswith('09'):
                     print("Confirmação de leitura recebida.")
                 else:
                     handle_message(data, client_id)
             else:
-                # No data means the server closed the connection
                 print("Conexão com o servidor foi perdida.")
                 break
     except socket.error as e:
